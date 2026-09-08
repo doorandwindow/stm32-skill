@@ -1,0 +1,36 @@
+{
+  "skill_name": "stm32-debug-loop",
+  "evals": [
+    {
+      "id": 0,
+      "name": "add-led-blink-counter",
+      "fixture": "C:/Users/syclx/.claude/skills/stm32-debug-loop-workspace/fixtures/eval-led-blink",
+      "prompt": "ALIENTEK 探索者 STM32F407ZGT6(HAL+CMake 工程,ST-Link 已连接本机)工程目录 P={FIXTURE_LED}。任务:(1) LED0(PF9,低电平点亮)以 200ms 周期持续翻转;(2) 维护一个翻转计数值,每翻转一次 +1;当计数值是 5 的倍数时用 printf 打印一行 \"blink=<计数值>\";(3) 完成 构建→烧录(ST-Link)→复位,再通过串口捕获取得真实输出,必须看到至少 3 行且计数值递增的 blink 行;(4) 将 final_report.md(改动摘要/构建烧录结论/串口证据原文)及证据日志复制到指定 outputs 目录。约束:只能改 P 内文件,不得动 Drivers/,无 GUI 工具可用。",
+      "expected_output": "固件实现闪烁+计数打印;flash log 显示 Download verified successfully;串口证据含≥3行递增 blink=N;报告完整",
+      "assertions": [
+        {"text": "构建成功:build 日志(rc=0 或产物 .elf 存在且时间晚于源码修改)"},
+        {"text": "烧录经 ST-Link 完成且校验通过(日志含 Download verified successfully 或等价校验成功标志)"},
+        {"text": "串口证据含至少 3 行 blink=<数字> 且数值严格递增"},
+        {"text": "相邻两行 blink 时间间隔约 1 秒 ±0.4s(对应 5 次×200ms 翻转周期)"},
+        {"text": "main.c 用户区实现了 200ms 周期翻转与计数取模打印(计数每翻转+1,%5==0 时打印当前计数值)"},
+        {"text": "outputs 目录交付完整:final_report.md 存在且引用了串口证据原文,证据日志文件已复制进来"},
+        {"text": "改动卫生:Drivers/ 目录零改动"}
+      ]
+    },
+    {
+      "id": 1,
+      "name": "diagnose-boot-fault",
+      "fixture": "C:/Users/syclx/.claude/skills/stm32-debug-loop-workspace/fixtures/eval-boot-fault",
+      "prompt": "用户报告:『我把工程 P={FIXTURE_FAULT} 的固件烧进探索者 F407 板子后毫无反应——LED 不闪、LCD 不亮、串口一条输出都没有。』请排查根因并修复:让板子恢复正常运行(开机阶段串口可见输出),重新烧录验证,把排查过程/根因/修复摘要/修复前后串口证据对比写入 outputs 的 final_report.md 并附日志副本。环境:HAL+CMake 工程,ST-Link 连机,USART1@115200 板载 CH340。",
+      "expected_output": "定位到 main.c USER CODE 1 区的 SEED-FAULT 空指针跳转(HardFault 在 UART 初始化前);移除该块;重烧后串口出现 LCD ID/boot 输出;报告含静默复现与修复后对照",
+      "assertions": [
+        {"text": "修复前有静默复现或推理链:先做了一次零字节捕获/烧录后观察,或报告中有明确的『为何先怀疑启动早期故障』的排查过程记录"},
+        {"text": "根因定位正确:指出 fault 位于 main() 最早期(USER CODE 1 区的空函数指针调用→HardFault,UART 初始化之前),而非时钟/USART 配置问题"},
+        {"text": "种子代码被完全移除(fixed 后的 main.c 不再包含 boot_bad 或任何非法地址函数指针跳转)"},
+        {"text": "修复后有重新构建并重新烧录成功的日志证据(顺序:编辑在先、verified 成功在后)"},
+        {"text": "修复后串口非空:复位捕获窗口内出现 LCD ID / boot 类输出行"},
+        {"text": "改动最小化:Core/ 下只动了 main.c,未盲目改时钟/FSMC 等 race 配置"}
+      ]
+    }
+  ]
+}
